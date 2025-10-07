@@ -1,0 +1,7 @@
+Compiler run failed:
+Error (7576): Undeclared identifier.
+   --> src/SettlementVault.sol:174:33:
+    |
+174 |         uint256 secondHighest = MockMarketplace(address(marketplace)).getSecondHighestBid(auctionId);
+    |                                 ^^^^^^^^^^^^^^^
+
