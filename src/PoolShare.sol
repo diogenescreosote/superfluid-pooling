@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/ISuperfluid.sol";
 
@@ -15,7 +15,7 @@ interface IEscrow {
  * @dev ERC-20 token representing shares in the NFT pool with Superfluid IDA integration
  * Synchronizes token balances with IDA units for instant distribution
  */
-contract PoolShare is ERC20, Ownable {
+contract PoolShare is ERC20Burnable, Ownable {
     /// @notice Superfluid IDA contract
     IInstantDistributionAgreementV1 public immutable ida;
     
@@ -25,11 +25,17 @@ contract PoolShare is ERC20, Ownable {
     /// @notice Index ID for IDA distributions
     uint32 public immutable indexId;
     
+    /// @notice Minimum hold period before receiving distributions (blocks)
+    uint256 public immutable minHoldPeriod;
+    
     /// @notice Escrow contract address (only address that can mint/burn)
     address public escrow;
     
     /// @notice Decimals for the token (18 to match 1e18 per NFT)
     uint8 private constant DECIMALS = 18;
+    
+    /// @notice Track last transfer block for each address
+    mapping(address => uint256) public lastTransferBlock;
     
     event EscrowSet(address indexed escrow);
     event IDAUnitsUpdated(address indexed account, uint256 oldUnits, uint256 newUnits);
@@ -51,7 +57,8 @@ contract PoolShare is ERC20, Ownable {
         string memory symbol_,
         IInstantDistributionAgreementV1 ida_,
         ISuperToken superToken_,
-        uint32 indexId_
+        uint32 indexId_,
+        uint256 minHoldPeriod_
     ) ERC20(name_, symbol_) Ownable(msg.sender) {
         if (address(ida_) == address(0) || address(superToken_) == address(0)) {
             revert ZeroAddress();
@@ -60,6 +67,7 @@ contract PoolShare is ERC20, Ownable {
         ida = ida_;
         superToken = superToken_;
         indexId = indexId_;
+        minHoldPeriod = minHoldPeriod_;
     }
     
     /**
@@ -110,6 +118,11 @@ contract PoolShare is ERC20, Ownable {
     function _update(address from, address to, uint256 amount) internal override {
         super._update(from, to, amount);
         
+        // Update last transfer block for recipient (resets hold period)
+        if (to != address(0) && to != address(escrow)) {
+            lastTransferBlock[to] = block.number;
+        }
+        
         // Update IDA units for both addresses
         if (from != address(0)) {
             _updateIDAUnits(from);
@@ -137,7 +150,14 @@ contract PoolShare is ERC20, Ownable {
             account
         );
         
-        uint128 newUnits = uint128(currentBalance);
+        // Check if account has held tokens for minimum period
+        // If not, set IDA units to 0 (no distribution eligibility)
+        uint128 newUnits;
+        if (block.number >= lastTransferBlock[account] + minHoldPeriod) {
+            newUnits = uint128(currentBalance);
+        } else {
+            newUnits = 0; // Not eligible for distributions yet
+        }
         
         // Only update if units changed
         if (!exist || currentUnits != newUnits) {

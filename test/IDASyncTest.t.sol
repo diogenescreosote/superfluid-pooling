@@ -56,7 +56,8 @@ contract IDASyncTest is Test {
             "PST",
             ida,
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0 // No minimum hold period for tests
         );
         
         // Deploy mock escrow
@@ -233,7 +234,8 @@ contract IDASyncTest is Test {
             "NPS",
             ida,
             superToken,
-            INDEX_ID + 1
+            INDEX_ID + 1,
+            0
         );
 
         // Mint should fail without escrow

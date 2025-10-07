@@ -1,0 +1,268 @@
+'forge clean' running (wd: /home/ubuntu/split)
+'forge config --json' running
+'forge build --build-info --skip */test/** */script/** --force' running (wd: /home/ubuntu/split)
+INFO:Detectors:
+AuctionAdapter.startAuction(address,uint256,uint256,uint256) (src/AuctionAdapter.sol#76-122) uses arbitrary from in transferFrom: IERC721(collection).transferFrom(address(escrow),address(this),tokenId) (src/AuctionAdapter.sol#96)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#arbitrary-from-in-transferfrom
+INFO:Detectors:
+Math.mulDiv(uint256,uint256,uint256) (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#123-202) has bitwise-xor operator ^ instead of the exponentiation operator **: 
+	 - inverse = (3 * denominator) ^ 2 (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#184)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-exponentiation
+INFO:Detectors:
+MockMarketplace.offer(uint256,uint256,address,uint256,uint256) (src/mocks/MockMarketplace.sol#44-78) ignores return value by IERC20(currency).transferFrom(msg.sender,address(this),totalPrice) (src/mocks/MockMarketplace.sol#58)
+MockMarketplace.closeAuction(uint256,address) (src/mocks/MockMarketplace.sol#80-124) ignores return value by IERC20(listing.currency).transfer(bidder,refundAmount) (src/mocks/MockMarketplace.sol#118)
+MockMarketplace.transferProceedsToVault(uint256,address) (src/mocks/MockMarketplace.sol#149-158) ignores return value by IERC20(listing.currency).transfer(vault,totalPayment) (src/mocks/MockMarketplace.sol#156)
+MockSuperToken.upgrade(uint256) (src/mocks/MockSuperfluid.sol#22-27) ignores return value by IERC20(_underlyingToken).transferFrom(msg.sender,address(this),amount) (src/mocks/MockSuperfluid.sol#24)
+MockSuperToken.downgrade(uint256) (src/mocks/MockSuperfluid.sol#29-34) ignores return value by IERC20(_underlyingToken).transfer(msg.sender,amount) (src/mocks/MockSuperfluid.sol#33)
+MockIDA.distribute(ISuperToken,uint32,uint256,bytes) (src/mocks/MockSuperfluid.sol#109-128) ignores return value by token.transferFrom(msg.sender,address(this),amount) (src/mocks/MockSuperfluid.sol#121)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#unchecked-transfer
+INFO:Detectors:
+Math.mulDiv(uint256,uint256,uint256) (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#123-202) performs a multiplication on the result of a division:
+	- denominator = denominator / twos (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#169)
+	- inverse = (3 * denominator) ^ 2 (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#184)
+Math.mulDiv(uint256,uint256,uint256) (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#123-202) performs a multiplication on the result of a division:
+	- denominator = denominator / twos (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#169)
+	- inverse *= 2 - denominator * inverse (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#188)
+Math.mulDiv(uint256,uint256,uint256) (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#123-202) performs a multiplication on the result of a division:
+	- denominator = denominator / twos (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#169)
+	- inverse *= 2 - denominator * inverse (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#189)
+Math.mulDiv(uint256,uint256,uint256) (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#123-202) performs a multiplication on the result of a division:
+	- denominator = denominator / twos (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#169)
+	- inverse *= 2 - denominator * inverse (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#190)
+Math.mulDiv(uint256,uint256,uint256) (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#123-202) performs a multiplication on the result of a division:
+	- denominator = denominator / twos (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#169)
+	- inverse *= 2 - denominator * inverse (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#191)
+Math.mulDiv(uint256,uint256,uint256) (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#123-202) performs a multiplication on the result of a division:
+	- denominator = denominator / twos (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#169)
+	- inverse *= 2 - denominator * inverse (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#192)
+Math.mulDiv(uint256,uint256,uint256) (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#123-202) performs a multiplication on the result of a division:
+	- denominator = denominator / twos (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#169)
+	- inverse *= 2 - denominator * inverse (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#193)
+Math.mulDiv(uint256,uint256,uint256) (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#123-202) performs a multiplication on the result of a division:
+	- prod0 = prod0 / twos (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#172)
+	- result = prod0 * inverse (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#199)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#divide-before-multiply
+INFO:Detectors:
+Escrow.forwardRevenue() (src/Escrow.sol#184-194) uses a dangerous strict equality:
+	- usdcBalance == 0 (src/Escrow.sol#187)
+SettlementVault.settle(uint256) (src/SettlementVault.sol#105-158) uses a dangerous strict equality:
+	- proceedsReceived == 0 (src/SettlementVault.sol#120)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#dangerous-strict-equalities
+INFO:Detectors:
+Contract locking ether found:
+	Contract SettlementVault (src/SettlementVault.sol#21-262) has payable functions:
+	 - SettlementVault.receiveProceeds(uint256) (src/SettlementVault.sol#92-99)
+	But does not have a function to withdraw the ether
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether
+INFO:Detectors:
+Reentrancy in MockIDA.distribute(ISuperToken,uint32,uint256,bytes) (src/mocks/MockSuperfluid.sol#109-128):
+	External calls:
+	- token.transferFrom(msg.sender,address(this),amount) (src/mocks/MockSuperfluid.sol#121)
+	State variables written after the call(s):
+	- index.indexValue += uint128(amount / index.totalUnitsApproved) (src/mocks/MockSuperfluid.sol#124)
+	MockIDA.indices (src/mocks/MockSuperfluid.sol#61) can be used in cross function reentrancies:
+	- MockIDA.createIndex(ISuperToken,uint32,bytes) (src/mocks/MockSuperfluid.sol#66-77)
+	- MockIDA.distribute(ISuperToken,uint32,uint256,bytes) (src/mocks/MockSuperfluid.sol#109-128)
+	- MockIDA.getIndex(ISuperToken,address,uint32) (src/mocks/MockSuperfluid.sol#145-157)
+	- MockIDA.indices (src/mocks/MockSuperfluid.sol#61)
+	- MockIDA.updateSubscription(ISuperToken,uint32,address,uint128,bytes) (src/mocks/MockSuperfluid.sol#79-107)
+Reentrancy in SettlementVault.emergencySettle(uint256,uint256,address) (src/SettlementVault.sol#220-261):
+	External calls:
+	- ! usdc.transfer(address(escrow),clearingPrice) (src/SettlementVault.sol#234)
+	- ! usdc.transfer(winner,remainder) (src/SettlementVault.sol#240)
+	State variables written after the call(s):
+	- settledAuctions[auctionId] = true (src/SettlementVault.sol#243)
+	SettlementVault.settledAuctions (src/SettlementVault.sol#35) can be used in cross function reentrancies:
+	- SettlementVault.getSettlementInfo(uint256) (src/SettlementVault.sol#188-194)
+	- SettlementVault.isSettled(uint256) (src/SettlementVault.sol#201-203)
+	- SettlementVault.settledAuctions (src/SettlementVault.sol#35)
+Reentrancy in SettlementVault.settle(uint256) (src/SettlementVault.sol#105-158):
+	External calls:
+	- ! usdc.transfer(winner,rebateAmount) (src/SettlementVault.sol#129)
+	- ! usdc.transfer(address(escrow),clearingPrice) (src/SettlementVault.sol#135)
+	State variables written after the call(s):
+	- settledAuctions[auctionId] = true (src/SettlementVault.sol#139)
+	SettlementVault.settledAuctions (src/SettlementVault.sol#35) can be used in cross function reentrancies:
+	- SettlementVault.getSettlementInfo(uint256) (src/SettlementVault.sol#188-194)
+	- SettlementVault.isSettled(uint256) (src/SettlementVault.sol#201-203)
+	- SettlementVault.settledAuctions (src/SettlementVault.sol#35)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-1
+INFO:Detectors:
+AuctionAdapter.startAuction(address,uint256,uint256,uint256) (src/AuctionAdapter.sol#76-122) ignores return value by usdc.approve(address(marketplace),earnestAmount) (src/AuctionAdapter.sol#94)
+Escrow.constructor(PoolShare,IERC20,ISuperToken,IInstantDistributionAgreementV1,uint32,address[]) (src/Escrow.sol#84-120) ignores return value by usdcx.approve(address(ida),type()(uint256).max) (src/Escrow.sol#111)
+Escrow.forwardRevenue() (src/Escrow.sol#184-194) ignores return value by usdc.approve(address(usdcx),usdcBalance) (src/Escrow.sol#189)
+Escrow.onAuctionSettled(address,uint256,uint256,address) (src/Escrow.sol#226-246) ignores return value by usdc.approve(address(usdcx),clearingPrice) (src/Escrow.sol#240)
+PoolShare._updateIDAUnits(address) (src/PoolShare.sol#126-148) ignores return value by (exist,None,currentUnits,None) = ida.getSubscription(superToken,escrow,indexId,account) (src/PoolShare.sol#133-138)
+PoolShare.getIDAUnits(address) (src/PoolShare.sol#163-165) ignores return value by (None,None,units,None) = ida.getSubscription(superToken,escrow,indexId,account) (src/PoolShare.sol#164)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#unused-return
+INFO:Detectors:
+AuctionAdapter.constructor(IMarketplace,Escrow,IERC20,address).settlementVault_ (src/AuctionAdapter.sol#57) lacks a zero-check on :
+		- settlementVault = settlementVault_ (src/AuctionAdapter.sol#66)
+MockSuperToken.constructor(string,string,address).underlyingToken_ (src/mocks/MockSuperfluid.sol#17) lacks a zero-check on :
+		- _underlyingToken = underlyingToken_ (src/mocks/MockSuperfluid.sol#19)
+MockSuperfluid.constructor(address).ida_ (src/mocks/MockSuperfluid.sol#167) lacks a zero-check on :
+		- ida = ida_ (src/mocks/MockSuperfluid.sol#168)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-zero-address-validation
+INFO:Detectors:
+Escrow.deposit(address,uint256[]) (src/Escrow.sol#158-178) has external calls inside a loop: nft.safeTransferFrom(msg.sender,address(this),tokenId) (src/Escrow.sol#167)
+Escrow.batchApproveAuctionAdapter(address,address,uint256[]) (src/Escrow.sol#341-352) has external calls inside a loop: IERC721(collection).approve(auctionAdapter_,tokenId) (src/Escrow.sol#350)
+MockMarketplace.closeAuction(uint256,address) (src/mocks/MockMarketplace.sol#80-124) has external calls inside a loop: IERC20(listing.currency).transfer(bidder,refundAmount) (src/mocks/MockMarketplace.sol#118)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation/#calls-inside-a-loop
+INFO:Detectors:
+Reentrancy in Escrow.burnSharesForAuction(address,address,uint256) (src/Escrow.sol#203-217):
+	External calls:
+	- poolShare.burn(initiator,SHARES_PER_NFT) (src/Escrow.sol#213)
+	State variables written after the call(s):
+	- totalNFTs -= 1 (src/Escrow.sol#214)
+Reentrancy in Escrow.deposit(address,uint256[]) (src/Escrow.sol#158-178):
+	External calls:
+	- nft.safeTransferFrom(msg.sender,address(this),tokenId) (src/Escrow.sol#167)
+	State variables written after the call(s):
+	- depositors[collection][tokenId] = msg.sender (src/Escrow.sol#168)
+	- totalNFTs += numTokens (src/Escrow.sol#173)
+Reentrancy in MockMarketplace.offer(uint256,uint256,address,uint256,uint256) (src/mocks/MockMarketplace.sol#44-78):
+	External calls:
+	- IERC20(currency).transferFrom(msg.sender,address(this),totalPrice) (src/mocks/MockMarketplace.sol#58)
+	State variables written after the call(s):
+	- _bidders[listingId].push(msg.sender) (src/mocks/MockMarketplace.sol#75)
+	- _offers[listingId][msg.sender] = Offer({listingId:listingId,offeror:msg.sender,quantityWanted:quantityWanted,currency:currency,pricePerToken:pricePerToken,expirationTimestamp:expirationTimestamp}) (src/mocks/MockMarketplace.sol#61-68)
+	- _winningBids[listingId] = _offers[listingId][msg.sender] (src/mocks/MockMarketplace.sol#72)
+Reentrancy in MockSuperToken.upgrade(uint256) (src/mocks/MockSuperfluid.sol#22-27):
+	External calls:
+	- IERC20(_underlyingToken).transferFrom(msg.sender,address(this),amount) (src/mocks/MockSuperfluid.sol#24)
+	State variables written after the call(s):
+	- _mint(msg.sender,amount) (src/mocks/MockSuperfluid.sol#26)
+		- _balances[from] = fromBalance - value (lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol#199)
+		- _balances[to] += value (lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol#211)
+	- _mint(msg.sender,amount) (src/mocks/MockSuperfluid.sol#26)
+		- _totalSupply += value (lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol#191)
+		- _totalSupply -= value (lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol#206)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-2
+INFO:Detectors:
+Reentrancy in PoolShare._update(address,address,uint256) (src/PoolShare.sol#110-120):
+	External calls:
+	- _updateIDAUnits(from) (src/PoolShare.sol#115)
+		- IEscrow(escrow).updateIDASubscription(account,newUnits) (src/PoolShare.sol#145)
+	- _updateIDAUnits(to) (src/PoolShare.sol#118)
+		- IEscrow(escrow).updateIDASubscription(account,newUnits) (src/PoolShare.sol#145)
+	Event emitted after the call(s):
+	- IDAUnitsUpdated(account,currentUnits,newUnits) (src/PoolShare.sol#146)
+		- _updateIDAUnits(to) (src/PoolShare.sol#118)
+Reentrancy in PoolShare._updateIDAUnits(address) (src/PoolShare.sol#126-148):
+	External calls:
+	- IEscrow(escrow).updateIDASubscription(account,newUnits) (src/PoolShare.sol#145)
+	Event emitted after the call(s):
+	- IDAUnitsUpdated(account,currentUnits,newUnits) (src/PoolShare.sol#146)
+Reentrancy in MockMarketplace.closeAuction(uint256,address) (src/mocks/MockMarketplace.sol#80-124):
+	External calls:
+	- IERC721(listing.assetContract).transferFrom(address(this),winningOffer.offeror,listing.tokenId) (src/mocks/MockMarketplace.sol#89-93)
+	Event emitted after the call(s):
+	- NewSale(listingId,listing.assetContract,listing.tokenOwner,winningOffer.offeror,winningOffer.quantityWanted,winningOffer.pricePerToken * winningOffer.quantityWanted) (src/mocks/MockMarketplace.sol#100-107)
+Reentrancy in MockMarketplace.closeAuction(uint256,address) (src/mocks/MockMarketplace.sol#80-124):
+	External calls:
+	- IERC721(listing.assetContract).transferFrom(address(this),winningOffer.offeror,listing.tokenId) (src/mocks/MockMarketplace.sol#89-93)
+	- IERC20(listing.currency).transfer(bidder,refundAmount) (src/mocks/MockMarketplace.sol#118)
+	Event emitted after the call(s):
+	- AuctionClosed(listingId,msg.sender,false,listing.tokenOwner,winningOffer.offeror) (src/mocks/MockMarketplace.sol#123)
+Reentrancy in MockMarketplace.createListing(IMarketplace.ListingParameters) (src/mocks/MockMarketplace.sol#20-42):
+	External calls:
+	- IERC721(params.assetContract).transferFrom(msg.sender,address(this),params.tokenId) (src/mocks/MockMarketplace.sol#39)
+	Event emitted after the call(s):
+	- ListingAdded(listingId,params.assetContract,msg.sender,_listings[listingId]) (src/mocks/MockMarketplace.sol#41)
+Reentrancy in MockMarketplace.offer(uint256,uint256,address,uint256,uint256) (src/mocks/MockMarketplace.sol#44-78):
+	External calls:
+	- IERC20(currency).transferFrom(msg.sender,address(this),totalPrice) (src/mocks/MockMarketplace.sol#58)
+	Event emitted after the call(s):
+	- NewOffer(listingId,msg.sender,listing.listingType,quantityWanted,totalPrice,currency) (src/mocks/MockMarketplace.sol#77)
+Reentrancy in MockSuperToken.upgrade(uint256) (src/mocks/MockSuperfluid.sol#22-27):
+	External calls:
+	- IERC20(_underlyingToken).transferFrom(msg.sender,address(this),amount) (src/mocks/MockSuperfluid.sol#24)
+	Event emitted after the call(s):
+	- Transfer(from,to,value) (lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol#215)
+		- _mint(msg.sender,amount) (src/mocks/MockSuperfluid.sol#26)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-3
+INFO:Detectors:
+MockMarketplace.closeAuction(uint256,address) (src/mocks/MockMarketplace.sol#80-124) uses timestamp for comparisons
+	Dangerous comparisons:
+	- require(bool,string)(block.timestamp >= listing.endTime,Auction not ended) (src/mocks/MockMarketplace.sol#83)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#block-timestamp
+INFO:Detectors:
+ERC721._checkOnERC721Received(address,address,uint256,bytes) (lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol#465-482) uses assembly
+	- INLINE ASM (lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol#476-478)
+Strings.toString(uint256) (lib/openzeppelin-contracts/contracts/utils/Strings.sol#24-44) uses assembly
+	- INLINE ASM (lib/openzeppelin-contracts/contracts/utils/Strings.sol#30-32)
+	- INLINE ASM (lib/openzeppelin-contracts/contracts/utils/Strings.sol#36-38)
+Math.mulDiv(uint256,uint256,uint256) (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#123-202) uses assembly
+	- INLINE ASM (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#130-133)
+	- INLINE ASM (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#154-161)
+	- INLINE ASM (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#167-176)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#assembly-usage
+INFO:Detectors:
+2 different versions of Solidity are used:
+	- Version constraint ^0.8.20 is used by:
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/access/Ownable.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol#3)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC20Burnable.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC721/utils/ERC721Holder.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Context.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Strings.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/SignedMath.sol#4)
+	- Version constraint ^0.8.23 is used by:
+		-^0.8.23 (src/AuctionAdapter.sol#2)
+		-^0.8.23 (src/Escrow.sol#2)
+		-^0.8.23 (src/PoolShare.sol#2)
+		-^0.8.23 (src/SettlementVault.sol#2)
+		-^0.8.23 (src/interfaces/IMarketplace.sol#2)
+		-^0.8.23 (src/interfaces/ISuperfluid.sol#2)
+		-^0.8.23 (src/mocks/MockERC20.sol#2)
+		-^0.8.23 (src/mocks/MockERC721.sol#2)
+		-^0.8.23 (src/mocks/MockMarketplace.sol#2)
+		-^0.8.23 (src/mocks/MockSuperfluid.sol#2)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#different-pragma-directives-are-used
+INFO:Detectors:
+Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)
+	- VerbatimInvalidDeduplication
+	- FullInlinerNonExpressionSplitArgumentEvaluationOrder
+	- MissingSideEffectsOnSelectorAccess.
+It is used by:
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/access/Ownable.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol#3)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC20Burnable.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC721/utils/ERC721Holder.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Context.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Strings.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/SignedMath.sol#4)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity
+INFO:Detectors:
+Escrow (src/Escrow.sol#17-369) should inherit from IEscrow (src/PoolShare.sol#9-11)
+Escrow (src/Escrow.sol#17-369) should inherit from IAuctionSettlement (src/interfaces/IMarketplace.sol#123-130)
+MockMarketplace (src/mocks/MockMarketplace.sol#12-177) should inherit from IMarketplaceExtended (src/SettlementVault.sol#12-14)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-inheritance
+INFO:Detectors:
+MockERC20._decimals (src/mocks/MockERC20.sol#11) should be immutable 
+MockSuperToken._underlyingToken (src/mocks/MockSuperfluid.sol#12) should be immutable 
+MockSuperfluid.ida (src/mocks/MockSuperfluid.sol#165) should be immutable 
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#state-variables-that-could-be-declared-immutable
+INFO:Slither:. analyzed (37 contracts with 100 detectors), 57 result(s) found

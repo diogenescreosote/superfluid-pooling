@@ -16,6 +16,7 @@ import "../src/mocks/MockMarketplace.sol";
  * @dev Tests to ensure system invariants are maintained
  */
 contract InvariantTest is Test {
+
     // Core contracts
     PoolShare public poolShare;
     Escrow public escrow;
@@ -57,7 +58,8 @@ contract InvariantTest is Test {
             "PST",
             ida,
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0 // No minimum hold period for tests
         );
         
         address[] memory allowedCollections = new address[](1);
@@ -87,7 +89,8 @@ contract InvariantTest is Test {
             marketplace,
             escrow,
             usdc,
-            address(settlementVault)
+            address(settlementVault),
+            500e6 // 500 USDC minimum earnest for tests
         );
 
         // Update settlement vault with correct auction adapter
@@ -100,6 +103,12 @@ contract InvariantTest is Test {
         escrow.setSettlementVault(address(settlementVault));
         
         vm.stopPrank();
+        
+        // Exclude sensitive contracts from fuzzing AFTER deployment
+        excludeContract(address(poolShare));
+        excludeContract(address(escrow));
+        excludeContract(address(auctionAdapter));
+        excludeContract(address(settlementVault));
         
         // Setup test data
         _setupTestData();

@@ -57,7 +57,8 @@ contract AccessControlTest is Test {
             "PST",
             ida,
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0 // No minimum hold period for tests
         );
         
         address[] memory allowedCollections = new address[](1);
@@ -85,7 +86,8 @@ contract AccessControlTest is Test {
             marketplace,
             escrow,
             usdc,
-            address(settlementVault)
+            address(settlementVault),
+            500e6 // 500 USDC minimum earnest
         );
         
         escrow.setSettlementVault(address(settlementVault));
@@ -148,7 +150,8 @@ contract AccessControlTest is Test {
             "TPS",
             ida,
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0
         );
         vm.stopPrank();
 
@@ -393,7 +396,8 @@ contract AccessControlTest is Test {
             "NPS",
             ida,
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0
         );
         vm.expectRevert(PoolShare.ZeroAddress.selector);
         newPoolShare.setEscrow(address(0));

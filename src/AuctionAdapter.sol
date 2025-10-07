@@ -35,43 +35,14 @@ contract AuctionAdapter is Ownable, ReentrancyGuard {
     /// @notice Default minimum bid increment (5%)
     uint256 public constant MIN_BID_INCREMENT_BPS = 500; // 5%
     
-    /// @notice Mapping of auction ID to NFT details
-    mapping(uint256 => AuctionInfo) public auctions;
+    /// @notice Minimum earnest money required to start an auction
+    uint256 public immutable minEarnest;
     
-    /// @notice Mapping to prevent multiple auctions per NFT
-    mapping(address => mapping(uint256 => bool)) public nftHasActiveAuction;
-    
-    struct AuctionInfo {
-        address collection;
-        uint256 tokenId;
-        address initiator;
-        uint256 earnestAmount;
-        uint256 reservePrice;
-        uint256 startTime;
-        uint256 endTime;
-        bool active;
-    }
-    
-    event AuctionCreated(
-        uint256 indexed listingId,
-        address indexed collection,
-        uint256 indexed tokenId,
-        address initiator,
-        uint256 earnestAmount,
-        uint256 reservePrice
-    );
-    
-    event AuctionParametersUpdated(
-        uint256 duration,
-        uint256 timeBuffer,
-        uint256 minBidIncrementBps
-    );
-    
+    event AuctionCreated(uint256 indexed listingId, address indexed collection, uint256 indexed tokenId, address initiator, uint256 earnestAmount);
+
     error NFTNotInEscrow();
-    error NFTAlreadyInAuction();
     error InsufficientEarnest();
     error TransferFailed();
-    error AuctionNotFound();
     error ZeroAddress();
     error InvalidParameters();
     
@@ -86,13 +57,10 @@ contract AuctionAdapter is Ownable, ReentrancyGuard {
         IMarketplace marketplace_,
         Escrow escrow_,
         IERC20 usdc_,
-        address settlementVault_
+        address settlementVault_,
+        uint256 minEarnest_
     ) Ownable(msg.sender) {
-        if (
-            address(marketplace_) == address(0) ||
-            address(escrow_) == address(0) ||
-            address(usdc_) == address(0)
-        ) {
+        if (address(marketplace_) == address(0) || address(escrow_) == address(0) || address(usdc_) == address(0)) {
             revert ZeroAddress();
         }
         
@@ -100,6 +68,7 @@ contract AuctionAdapter is Ownable, ReentrancyGuard {
         escrow = escrow_;
         usdc = usdc_;
         settlementVault = settlementVault_;
+        minEarnest = minEarnest_;
     }
     
     /**
@@ -115,34 +84,23 @@ contract AuctionAdapter is Ownable, ReentrancyGuard {
         uint256 earnestAmount,
         uint256 duration
     ) external nonReentrant returns (uint256 listingId) {
-        // Validate NFT is in escrow and not already in auction
         if (!escrow.holdsNFT(collection, tokenId)) revert NFTNotInEscrow();
-        if (nftHasActiveAuction[collection][tokenId]) revert NFTAlreadyInAuction();
-        if (earnestAmount == 0) revert InsufficientEarnest();
-        
-        // CRITICAL FIX: Require caller to burn shares upfront (proves buyout rights)
-        // This prevents unauthorized auctions and fixes the share burning issue
+        if (earnestAmount < minEarnest) revert InsufficientEarnest();
+
         escrow.burnSharesForAuction(msg.sender, collection, tokenId);
-        
-        // Use default duration if not specified
+
         uint256 auctionDuration = duration == 0 ? DEFAULT_DURATION : duration;
         if (auctionDuration < 1 hours) revert InvalidParameters();
-        
-        // Transfer earnest money from initiator
+
         if (!usdc.transferFrom(msg.sender, address(this), earnestAmount)) {
             revert TransferFailed();
         }
-        
-        // Approve marketplace to handle the earnest money as first bid
+
         usdc.approve(address(marketplace), earnestAmount);
-        
-        // Transfer NFT from escrow to this contract
+
         IERC721(collection).transferFrom(address(escrow), address(this), tokenId);
-        
-        // Approve marketplace to transfer NFT
         IERC721(collection).approve(address(marketplace), tokenId);
-        
-        // Create listing parameters
+
         IMarketplace.ListingParameters memory params = IMarketplace.ListingParameters({
             assetContract: collection,
             tokenId: tokenId,
@@ -151,103 +109,21 @@ contract AuctionAdapter is Ownable, ReentrancyGuard {
             quantityToList: 1,
             currencyToAccept: address(usdc),
             reservePrice: earnestAmount,
-            buyoutPrice: type(uint256).max, // No buyout price
-            listingType: 1 // Auction
+            buyoutPrice: type(uint256).max,
+            listingType: 1
         });
-        
-        // Create listing on marketplace
+
         listingId = marketplace.createListing(params);
-        
-        // Make the earnest money the opening bid
+
         marketplace.offer(
             listingId,
-            1, // quantity
+            1,
             address(usdc),
             earnestAmount,
             block.timestamp + auctionDuration
         );
-        
-        // Store auction info
-        auctions[listingId] = AuctionInfo({
-            collection: collection,
-            tokenId: tokenId,
-            initiator: msg.sender,
-            earnestAmount: earnestAmount,
-            reservePrice: earnestAmount,
-            startTime: block.timestamp,
-            endTime: block.timestamp + auctionDuration,
-            active: true
-        });
-        
-        // Mark NFT as in auction (already marked in burnSharesForAuction, but keep for consistency)
-        nftHasActiveAuction[collection][tokenId] = true;
-        // Note: escrow.markNFTInAuction() not needed - already set in burnSharesForAuction()
-        
-        emit AuctionCreated(
-            listingId,
-            collection,
-            tokenId,
-            msg.sender,
-            earnestAmount,
-            earnestAmount
-        );
-    }
-    
-    /**
-     * @dev Get auction information
-     * @param listingId Marketplace listing ID
-     * @return Auction information struct
-     */
-    function getAuctionInfo(uint256 listingId) external view returns (AuctionInfo memory) {
-        return auctions[listingId];
-    }
-    
-    /**
-     * @dev Check if NFT has an active auction
-     * @param collection NFT collection
-     * @param tokenId Token ID
-     * @return True if NFT has active auction
-     */
-    function hasActiveAuction(address collection, uint256 tokenId) external view returns (bool) {
-        return nftHasActiveAuction[collection][tokenId];
-    }
-    
-    /**
-     * @dev Mark auction as completed (called by settlement vault)
-     * @param listingId Marketplace listing ID
-     */
-    function markAuctionCompleted(uint256 listingId) external {
-        if (msg.sender != settlementVault) revert(); // Only settlement vault can call
-        
-        AuctionInfo storage auction = auctions[listingId];
-        if (!auction.active) revert AuctionNotFound();
-        
-        auction.active = false;
-        nftHasActiveAuction[auction.collection][auction.tokenId] = false;
-    }
-    
-    /**
-     * @dev Get marketplace listing details
-     * @param listingId Marketplace listing ID
-     * @return Marketplace listing struct
-     */
-    function getMarketplaceListing(uint256 listingId) external view returns (IMarketplace.Listing memory) {
-        return marketplace.listings(listingId);
-    }
-    
-    /**
-     * @dev Get winning bid details
-     * @param listingId Marketplace listing ID
-     * @return bidder Winning bidder address
-     * @return currency Bid currency
-     * @return bidAmount Winning bid amount
-     */
-    function getWinningBid(uint256 listingId) external view returns (
-        address bidder,
-        address currency,
-        uint256 bidAmount
-    ) {
-        return marketplace.winningBid(listingId);
+
+        emit AuctionCreated(listingId, collection, tokenId, msg.sender, earnestAmount);
     }
     
     /**

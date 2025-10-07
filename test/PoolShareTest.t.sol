@@ -52,7 +52,8 @@ contract PoolShareTest is Test {
             "PST",
             ida,
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0 // No minimum hold period for tests
         );
         
         // Set escrow
@@ -80,7 +81,8 @@ contract PoolShareTest is Test {
             "NPS",
             ida,
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0
         );
         
         // Should be able to set escrow once
@@ -102,7 +104,8 @@ contract PoolShareTest is Test {
             "TPS",
             ida,
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0
         );
 
         // Deploy mock escrow
@@ -136,7 +139,8 @@ contract PoolShareTest is Test {
             "TPS",
             ida,
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0
         );
 
         // Deploy mock escrow
@@ -174,7 +178,8 @@ contract PoolShareTest is Test {
             "TPS",
             ida,
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0
         );
         
         // Deploy a mock escrow that implements the IEscrow interface
@@ -215,7 +220,8 @@ contract PoolShareTest is Test {
             "TPS2",
             ida,
             superToken,
-            INDEX_ID + 1 // Use different index ID
+            INDEX_ID + 1, // Use different index ID
+            0
         );
         
         // Deploy a mock escrow that implements the IEscrow interface
@@ -245,7 +251,8 @@ contract PoolShareTest is Test {
             "NPS",
             ida,
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0
         );
         
         vm.expectRevert(PoolShare.ZeroAddress.selector);
@@ -264,7 +271,8 @@ contract PoolShareTest is Test {
             "PS",
             IInstantDistributionAgreementV1(address(0)),
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0
         );
         
         // Should revert with zero SuperToken address
@@ -274,7 +282,8 @@ contract PoolShareTest is Test {
             "PS",
             ida,
             ISuperToken(address(0)),
-            INDEX_ID
+            INDEX_ID,
+            0
         );
         
         vm.stopPrank();

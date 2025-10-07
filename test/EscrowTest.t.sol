@@ -41,7 +41,8 @@ contract EscrowTest is Test {
             "PST",
             ida,
             superToken,
-            INDEX_ID
+            INDEX_ID,
+            0 // No minimum hold period for tests
         );
         
         // Deploy Escrow

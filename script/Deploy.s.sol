@@ -57,7 +57,8 @@ contract Deploy is Script {
             POOL_SYMBOL,
             IInstantDistributionAgreementV1(IDA_ADDRESS),
             ISuperToken(USDCX_ADDRESS),
-            INDEX_ID
+            INDEX_ID,
+            7200 // Minimum hold period: ~24 hours (assuming 12s blocks)
         );
         console.log("PoolShare deployed at:", address(poolShare));
         
@@ -93,7 +94,8 @@ contract Deploy is Script {
             IMarketplace(MARKETPLACE_ADDRESS),
             escrow,
             IERC20(USDC_ADDRESS),
-            address(settlementVault)
+            address(settlementVault),
+            1000e6 // Minimum earnest: 1000 USDC
         );
         console.log("AuctionAdapter deployed at:", address(auctionAdapter));
         

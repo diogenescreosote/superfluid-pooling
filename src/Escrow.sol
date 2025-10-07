@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/ISuperfluid.sol";
-import "./interfaces/IMarketplace.sol";
 import "./PoolShare.sol";
 
 /**
@@ -15,7 +14,7 @@ import "./PoolShare.sol";
  * @dev Custody contract for NFTs with Superfluid IDA revenue distribution
  * Holds NFTs, mints/burns pool shares, and distributes revenue via Superfluid
  */
-contract Escrow is ERC721Holder, Ownable, ReentrancyGuard, IAuctionSettlement {
+contract Escrow is ERC721Holder, Ownable, ReentrancyGuard {
     /// @notice Pool share token
     PoolShare public immutable poolShare;
     
@@ -40,9 +39,6 @@ contract Escrow is ERC721Holder, Ownable, ReentrancyGuard, IAuctionSettlement {
     /// @notice Mapping to track NFT depositors: collection => tokenId => depositor
     mapping(address => mapping(uint256 => address)) public depositors;
     
-    /// @notice Mapping to track if NFT is in auction: collection => tokenId => isInAuction
-    mapping(address => mapping(uint256 => bool)) public nftInAuction;
-    
     /// @notice Settlement vault address (can call onAuctionSettled)
     address public settlementVault;
     
@@ -58,12 +54,7 @@ contract Escrow is ERC721Holder, Ownable, ReentrancyGuard, IAuctionSettlement {
     event CollectionAllowed(address indexed collection, bool allowed);
     event NFTDeposited(address indexed collection, uint256 indexed tokenId, address indexed depositor);
     event RevenueDistributed(uint256 amount, string source);
-    event AuctionProceedsDistributed(
-        uint256 indexed auctionId,
-        address indexed collection,
-        uint256 indexed tokenId,
-        uint256 clearingPrice
-    );
+    event AuctionProceedsDistributed(address indexed collection, uint256 indexed tokenId, uint256 clearingPrice);
     event SettlementVaultSet(address indexed settlementVault);
     event AuctionAdapterSet(address indexed auctionAdapter);
     event Paused(address indexed account);
@@ -71,7 +62,6 @@ contract Escrow is ERC721Holder, Ownable, ReentrancyGuard, IAuctionSettlement {
     
     error CollectionNotAllowed();
     error NFTNotOwned();
-    error NFTInAuction();
     error OnlySettlementVault();
     error OnlyAuctionAdapter();
     error OnlyPoolShare();
@@ -172,34 +162,19 @@ contract Escrow is ERC721Holder, Ownable, ReentrancyGuard, IAuctionSettlement {
         IERC721 nft = IERC721(collection);
         uint256 numTokens = tokenIds.length;
 
-        // Transfer NFTs and record depositors
         for (uint256 i = 0; i < numTokens; ) {
             uint256 tokenId = tokenIds[i];
-
-            // Transfer NFT to this contract
-            nft.transferFrom(msg.sender, address(this), tokenId);
-
-            // Record depositor
+            nft.safeTransferFrom(msg.sender, address(this), tokenId);
             depositors[collection][tokenId] = msg.sender;
-
             emit NFTDeposited(collection, tokenId, msg.sender);
-
             unchecked { i++; }
         }
 
-        // Update total NFT count
-        unchecked {
-            totalNFTs += numTokens;
-        }
-
-        // Mint pool shares (1e18 per NFT)
+        unchecked { totalNFTs += numTokens; }
         uint256 sharesToMint = numTokens * SHARES_PER_NFT;
         poolShare.mint(msg.sender, sharesToMint);
 
-        // Verify invariant: totalSupply == totalNFTs * SHARES_PER_NFT
-        if (poolShare.totalSupply() != totalNFTs * SHARES_PER_NFT) {
-            revert InvariantViolation();
-        }
+        if (poolShare.totalSupply() != totalNFTs * SHARES_PER_NFT) revert InvariantViolation();
     }
     
     /**
@@ -211,14 +186,28 @@ contract Escrow is ERC721Holder, Ownable, ReentrancyGuard, IAuctionSettlement {
         uint256 usdcBalance = usdc.balanceOf(address(this));
         if (usdcBalance == 0) return;
         
-        // Approve and upgrade USDC to USDCx
-        require(usdc.approve(address(usdcx), usdcBalance), "USDC approve failed");
-        usdcx.upgrade(usdcBalance);
-
-        // Distribute via IDA (approval already set in constructor)
-        ida.distribute(usdcx, indexId, usdcBalance, "");
+        // FIX #6: Check if approve succeeds
+        bool approved = usdc.approve(address(usdcx), usdcBalance);
+        require(approved, "USDC approval failed");
         
-        emit RevenueDistributed(usdcBalance, "operations");
+        // FIX #6: Verify upgrade worked by checking balance increase
+        uint256 usdcxBefore = usdcx.balanceOf(address(this));
+        try usdcx.upgrade(usdcBalance) {
+            uint256 usdcxAfter = usdcx.balanceOf(address(this));
+            require(usdcxAfter >= usdcxBefore + usdcBalance, "USDCx upgrade failed");
+        } catch {
+            // If upgrade fails, USDC stays in contract for manual recovery
+            emit RevenueDistributed(0, "upgrade_failed");
+            return;
+        }
+        
+        // FIX #6: Try distribute with error handling
+        try ida.distribute(usdcx, indexId, usdcBalance, "") {
+            emit RevenueDistributed(usdcBalance, "operations");
+        } catch {
+            // Distribution failed - USDCx stuck, needs manual intervention
+            emit RevenueDistributed(0, "distribute_failed");
+        }
     }
     
     /**
@@ -233,30 +222,15 @@ contract Escrow is ERC721Holder, Ownable, ReentrancyGuard, IAuctionSettlement {
         address collection,
         uint256 tokenId
     ) external nonReentrant {
-        // CRITICAL FIX: Only auction adapter can call this (access control)
         if (msg.sender != auctionAdapter) revert OnlyAuctionAdapter();
         if (depositors[collection][tokenId] == address(0)) revert NFTNotOwned();
-        if (nftInAuction[collection][tokenId]) revert NFTInAuction();
-        
-        // SECURITY FIX: Verify initiator has sufficient shares before burning
-        if (poolShare.balanceOf(initiator) < SHARES_PER_NFT) {
-            revert InsufficientShares();
-        }
-        
-        // SECURITY FIX: Mark NFT as in auction BEFORE burning (prevents race conditions)
-        nftInAuction[collection][tokenId] = true;
-        
-        // CRITICAL FIX: Burn shares from initiator upfront
-        // This proves they have buyout rights and prevents the share burning issue
+
+        if (poolShare.balanceOf(initiator) < SHARES_PER_NFT) revert InsufficientShares();
+
         poolShare.burn(initiator, SHARES_PER_NFT);
-        
-        // Update total NFT count
         totalNFTs -= 1;
-        
-        // Verify invariant
-        if (poolShare.totalSupply() != totalNFTs * SHARES_PER_NFT) {
-            revert InvariantViolation();
-        }
+
+        if (poolShare.totalSupply() != totalNFTs * SHARES_PER_NFT) revert InvariantViolation();
     }
     
     /**
@@ -277,42 +251,32 @@ contract Escrow is ERC721Holder, Ownable, ReentrancyGuard, IAuctionSettlement {
         address depositor = depositors[collection][tokenId];
         if (depositor == address(0)) revert InvalidDepositor();
         
-        // Mark NFT as no longer in auction
-        nftInAuction[collection][tokenId] = false;
-        
-        // CRITICAL FIX: Shares already burned in burnSharesForAuction()
-        // No need to burn again - this fixes the ERC20InsufficientBalance issue
-        
-        // NFT already transferred to winner by marketplace
-        // IERC721(collection).transferFrom(address(this), winner, tokenId);
-        
-        // Clear depositor record
         delete depositors[collection][tokenId];
-        
-        // Convert clearing price to USDCx and distribute
-        if (clearingPrice > 0) {
-            require(usdc.approve(address(usdcx), clearingPrice), "USDC approve failed");
-            usdcx.upgrade(clearingPrice);
 
-            // Distribute via IDA (approval already set in constructor)
-            ida.distribute(usdcx, indexId, clearingPrice, "");
+        if (clearingPrice > 0) {
+            // FIX #6: Same error handling for auction settlements
+            bool approved = usdc.approve(address(usdcx), clearingPrice);
+            require(approved, "USDC approval failed");
+            
+            uint256 usdcxBefore = usdcx.balanceOf(address(this));
+            try usdcx.upgrade(clearingPrice) {
+                uint256 usdcxAfter = usdcx.balanceOf(address(this));
+                require(usdcxAfter >= usdcxBefore + clearingPrice, "USDCx upgrade failed");
+                
+                // Try to distribute
+                try ida.distribute(usdcx, indexId, clearingPrice, "") {
+                    emit AuctionProceedsDistributed(collection, tokenId, clearingPrice);
+                } catch {
+                    // Distribution failed but proceeds are converted to USDCx
+                    emit AuctionProceedsDistributed(collection, tokenId, 0);
+                }
+            } catch {
+                // Upgrade failed, USDC remains in contract
+                emit AuctionProceedsDistributed(collection, tokenId, 0);
+            }
+        } else {
+            emit AuctionProceedsDistributed(collection, tokenId, clearingPrice);
         }
-        
-        // Invariant already verified in burnSharesForAuction()
-        
-        emit AuctionProceedsDistributed(0, collection, tokenId, clearingPrice); // auctionId set to 0 for now
-    }
-    
-    /**
-     * @dev Mark NFT as in auction (called by auction adapter)
-     * @param collection NFT collection
-     * @param tokenId Token ID
-     */
-    function markNFTInAuction(address collection, uint256 tokenId) external {
-        // This would be called by the auction adapter
-        // For now, we'll implement basic access control
-        if (depositors[collection][tokenId] == address(0)) revert NFTNotOwned();
-        nftInAuction[collection][tokenId] = true;
     }
     
     /**
@@ -384,7 +348,6 @@ contract Escrow is ERC721Holder, Ownable, ReentrancyGuard, IAuctionSettlement {
         uint256 tokenId
     ) external onlyOwner {
         require(depositors[collection][tokenId] != address(0), "NFT not in escrow");
-        require(!nftInAuction[collection][tokenId], "NFT already in auction");
         
         IERC721(collection).approve(auctionAdapter_, tokenId);
     }
@@ -417,7 +380,6 @@ contract Escrow is ERC721Holder, Ownable, ReentrancyGuard, IAuctionSettlement {
         for (uint256 i = 0; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
             require(depositors[collection][tokenId] != address(0), "NFT not in escrow");
-            require(!nftInAuction[collection][tokenId], "NFT already in auction");
             
             IERC721(collection).approve(auctionAdapter_, tokenId);
         }

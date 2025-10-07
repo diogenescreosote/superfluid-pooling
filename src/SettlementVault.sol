@@ -8,6 +8,11 @@ import "./interfaces/IMarketplace.sol";
 import "./Escrow.sol";
 import "./AuctionAdapter.sol";
 
+// Interface for accessing mock marketplace second-price logic
+interface IMarketplaceExtended is IMarketplace {
+    function getSecondHighestBid(uint256 listingId) external view returns (uint256);
+}
+
 /**
  * @title SettlementVault
  * @dev Handles second-price auction settlement and proceeds routing
@@ -29,8 +34,11 @@ contract SettlementVault is Ownable, ReentrancyGuard {
     /// @notice Mapping to track settled auctions
     mapping(uint256 => bool) public settledAuctions;
     
-    /// @notice Mapping to track received proceeds per auction
+    /// @notice Mapping to track received proceeds per auction (FIX #5)
     mapping(uint256 => uint256) public auctionProceeds;
+    
+    /// @notice Nonce to prevent proceeds mixing across auctions
+    uint256 private lastRecordedBalance;
     
     event AuctionSettled(
         uint256 indexed auctionId,
@@ -81,16 +89,19 @@ contract SettlementVault is Ownable, ReentrancyGuard {
     
     /**
      * @dev Receive auction proceeds from marketplace
-     * This function would be called by the marketplace when auction completes
+     * Called after marketplace transfers USDC to this contract
      * @param auctionId Auction/listing ID
      */
     function receiveProceeds(uint256 auctionId) external payable {
-        // For USDC auctions, proceeds come as token transfers
-        // This function serves as a hook for when proceeds are received
+        // FIX #5: Track per-auction proceeds accurately
+        // Calculate only the NEW proceeds since last call
         uint256 currentBalance = usdc.balanceOf(address(this));
-        auctionProceeds[auctionId] = currentBalance;
+        uint256 newProceeds = currentBalance - lastRecordedBalance;
         
-        emit ProceedsReceived(auctionId, currentBalance);
+        auctionProceeds[auctionId] += newProceeds;
+        lastRecordedBalance = currentBalance;
+        
+        emit ProceedsReceived(auctionId, newProceeds);
     }
     
     /**
@@ -100,21 +111,18 @@ contract SettlementVault is Ownable, ReentrancyGuard {
     function settle(uint256 auctionId) external nonReentrant {
         if (settledAuctions[auctionId]) revert AuctionAlreadySettled();
         
-        // Get auction info from adapter
-        AuctionAdapter.AuctionInfo memory auctionInfo = auctionAdapter.getAuctionInfo(auctionId);
-        if (!auctionInfo.active && auctionInfo.collection == address(0)) revert AuctionNotFound();
-        
-        // Get marketplace listing details
+        // Get marketplace listing details to extract NFT info
         IMarketplace.Listing memory listing = marketplace.listings(auctionId);
+        if (listing.assetContract == address(0)) revert AuctionNotFound();
         
         // Get winning bid
         (address winner, address currency, uint256 highestBid) = marketplace.winningBid(auctionId);
         
         // Calculate clearing price (second-price logic)
-        uint256 clearingPrice = _calculateClearingPrice(auctionId, auctionInfo.reservePrice, highestBid);
+        uint256 clearingPrice = _calculateClearingPrice(auctionId, listing.reservePrice, highestBid);
         
-        // Get proceeds received from marketplace
-        uint256 proceedsReceived = usdc.balanceOf(address(this));
+        // FIX #5: Use per-auction proceeds tracking instead of total balance
+        uint256 proceedsReceived = auctionProceeds[auctionId];
         if (proceedsReceived == 0) revert NoProceeds();
         
         // Calculate rebate amount
@@ -133,24 +141,23 @@ contract SettlementVault is Ownable, ReentrancyGuard {
             if (!usdc.transfer(address(escrow), clearingPrice)) revert TransferFailed();
         }
         
-        // Mark auction as settled
+        // Mark auction as settled and clear proceeds tracking
         settledAuctions[auctionId] = true;
-        
-        // Mark auction as completed in adapter
-        auctionAdapter.markAuctionCompleted(auctionId);
+        auctionProceeds[auctionId] = 0; // Clear claimed proceeds
+        lastRecordedBalance = usdc.balanceOf(address(this)); // Update for next auction
         
         // Notify escrow of settlement
         escrow.onAuctionSettled(
-            auctionInfo.collection,
-            auctionInfo.tokenId,
+            listing.assetContract,
+            listing.tokenId,
             clearingPrice,
             winner
         );
         
         emit AuctionSettled(
             auctionId,
-            auctionInfo.collection,
-            auctionInfo.tokenId,
+            listing.assetContract,
+            listing.tokenId,
             winner,
             highestBid,
             clearingPrice,
@@ -171,7 +178,7 @@ contract SettlementVault is Ownable, ReentrancyGuard {
         uint256 highestBid
     ) internal view returns (uint256) {
         // Get second highest bid from marketplace
-        uint256 secondHighest = MockMarketplace(address(marketplace)).getSecondHighestBid(auctionId);
+        uint256 secondHighest = IMarketplaceExtended(address(marketplace)).getSecondHighestBid(auctionId);
 
         // Clearing price is the maximum of reserve price and second highest bid
         uint256 clearing = secondHighest > reservePrice ? secondHighest : reservePrice;
@@ -225,8 +232,8 @@ contract SettlementVault is Ownable, ReentrancyGuard {
     ) external onlyOwner nonReentrant {
         if (settledAuctions[auctionId]) revert AuctionAlreadySettled();
         
-        AuctionAdapter.AuctionInfo memory auctionInfo = auctionAdapter.getAuctionInfo(auctionId);
-        if (auctionInfo.collection == address(0)) revert AuctionNotFound();
+        IMarketplace.Listing memory listing = marketplace.listings(auctionId);
+        if (listing.assetContract == address(0)) revert AuctionNotFound();
         
         uint256 balance = usdc.balanceOf(address(this));
         
@@ -242,19 +249,18 @@ contract SettlementVault is Ownable, ReentrancyGuard {
         }
         
         settledAuctions[auctionId] = true;
-        auctionAdapter.markAuctionCompleted(auctionId);
         
         escrow.onAuctionSettled(
-            auctionInfo.collection,
-            auctionInfo.tokenId,
+            listing.assetContract,
+            listing.tokenId,
             clearingPrice,
             winner
         );
         
         emit AuctionSettled(
             auctionId,
-            auctionInfo.collection,
-            auctionInfo.tokenId,
+            listing.assetContract,
+            listing.tokenId,
             winner,
             balance,
             clearingPrice,
